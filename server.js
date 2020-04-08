@@ -5,7 +5,7 @@ const multer = require("multer");
 const cors = require("cors");
 const fs = require("fs");
 const archiver = require("archiver");
-const uploadFiles = require("./uploadFiles");
+const { uploadFiles, sendMessage } = require("./uploadFiles");
 
 /* INITIAL CONFIG */
 const app = express();
@@ -55,7 +55,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
     });
 
     // send success response
-    res.json("Uw bestanden werden succesvol verzonden!");
+    res.json("success");
 
     // upload zip to google drive, then delete zip file
     uploadFiles(`${name}.zip`, req.body.name, (file) => {
@@ -69,6 +69,11 @@ app.post("/upload", upload.array("images"), (req, res) => {
 
   // get all files in uploads/client_name and pipe them to uploads/client_name.zip
   archive.directory(`${uploadDir + name}`, false).finalize();
+});
+
+app.post("/directactie", function (req, res) {
+  console.log(req.body);
+  res.json("success");
 });
 
 app.listen(3001, () => {

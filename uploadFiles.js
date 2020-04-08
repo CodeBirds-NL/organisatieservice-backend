@@ -12,7 +12,7 @@ const SCOPES = [
 // time.
 const TOKEN_PATH = "token.json";
 
-function uploadFiles(file, name, cb) {
+function uploadFiles(file, name, callback) {
   // Load client secrets from a local file.
   fs.readFile("credentials.json", (err, content) => {
     if (err) return console.log("Error loading client secret file:", err);
@@ -109,94 +109,130 @@ function uploadFiles(file, name, cb) {
         } else {
           // console.log("File Id: ", file.data.id);
           // call here the callback which sends an email notification
-          sendMessage(auth, file.data.id, name);
+          sendMessage(auth, file.data.id, name, callback);
         }
-      }
-    );
-  }
-
-  function makeBody(to, from, subject, message) {
-    const str = [
-      'Content-Type: text/html; charset="UTF-8"\n',
-      "MIME-Version: 1.0\n",
-      "Content-Transfer-Encoding: 7bit\n",
-      "to: ",
-      to,
-      "\n",
-      "from: ",
-      from,
-      "\n",
-      "subject: ",
-      subject,
-      "\n\n",
-      message,
-    ].join("");
-
-    const encodedMail = new Buffer.from(str)
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_");
-    return encodedMail;
-  }
-
-  /**
-   * Send Message.
-   *
-   * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
-   * @param {file.data} fileId The id of the uploaded zip folder used to create a downloadlink
-   * @param {name} name The name of the client who uploaded the files
-   */
-
-  function sendMessage(auth, fileId, name) {
-    // Using the js-base64 library for encoding:
-    // https://www.npmjs.com/package/js-base64
-    const downloadLink = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    const gmail = google.gmail({ version: "v1", auth });
-    const raw = makeBody(
-      process.env.EMAIL_SENDER,
-      process.env.EMAIL_RECIPIENT,
-      `${name} heeft nieuwe bestanden geupload`,
-      `<!DOCTYPE html>
-      <html lang="en" style="font-family: &quot;Lato&quot;;">
-        <head>
-          <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
-        </head>
-        <body style="padding: 20px 30px;">
-          <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
-          <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
-            ${name} heeft nieuwe bestanden geüpload op je website. Hieronder vindt je de
-            link om de zip folder met de bestanden te downloaden.
-            <br><span style="display: block; margin: 32px 0;"><strong style="text-decoration: underline;">Let op:</strong> de link
-              werkt alleen als je ingelogd bent in Google Drive of toegang hebt tot de
-              gedeelde map
-          </span></p>
-      
-          <table>
-            <tr>
-              <td><a class="btn" href=${downloadLink} style="font-size: 20px;color: #fff;line-height: 1em;margin: 1em 0;display: block;width: fit-content;padding: 0.75em 1em;cursor: pointer;outline: 0;border: 3px solid #007be0;border-radius: 32px;-webkit-border-radius: 32px;background-color: #007be0;text-decoration: none;text-transform: capitalize;box-shadow: 5px 5px 22px 0 rgba(0, 0, 0, 0.06);transition: background-color 0.25s ease-out, color 0.25s ease-out,
-                border-color 0.25s ease-out;">Download bestanden</a></td>
-              <td>
-                <a class="link" href="https://accounts.google.com/signin/v2/identifier?service=wise&passive=true&continue=http%3A%2F%2Fdrive.google.com%2F%3Futm_source%3Dnl&utm_medium=button&utm_campaign=web&utm_content=gotodrive&usp=gtd&ltmpl=drive&flowName=GlifWebSignIn&flowEntry=ServiceLogin" style="font-size: 20px;color: #001010;line-height: 1em;margin: 1em 0;text-decoration: none;margin-left: 24px;">Login Drive
-              </a></td>
-            </tr>
-          </table>
-        </body>
-      </html>
-      `
-    );
-    gmail.users.messages.send(
-      {
-        userId: process.env.EMAIL_RECIPIENT,
-        resource: {
-          raw,
-        },
-      },
-      (err) => {
-        if (err) return console.log(err);
-        return cb(file);
       }
     );
   }
 }
 
-module.exports = uploadFiles;
+function makeBody(to, from, subject, message) {
+  const str = [
+    'Content-Type: text/html; charset="UTF-8"\n',
+    "MIME-Version: 1.0\n",
+    "Content-Transfer-Encoding: 7bit\n",
+    "to: ",
+    to,
+    "\n",
+    "from: ",
+    from,
+    "\n",
+    "subject: ",
+    subject,
+    "\n\n",
+    message,
+  ].join("");
+
+  const encodedMail = new Buffer.from(str)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return encodedMail;
+}
+
+/**
+ * Send Message.
+ *
+ * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+ * @param {file.data} fileId The id of the uploaded zip folder used to create a downloadlink
+ * @param {name} name The name of the client who uploaded the files
+ */
+
+function sendMessage(auth, fileId, name, callback) {
+  // Using the js-base64 library for encoding:
+  // https://www.npmjs.com/package/js-base64
+  const downloadLink = `https://drive.google.com/uc?export=download&id=${fileId}`;
+  const gmail = google.gmail({ version: "v1", auth });
+  const raw = makeBody(
+    process.env.EMAIL_RECIPIENT,
+    process.env.EMAIL_SENDER,
+    `${name} heeft nieuwe bestanden geupload`,
+    uploadNotificationEmailBody(name, downloadLink)
+  );
+  gmail.users.messages.send(
+    {
+      userId: process.env.EMAIL_SENDER,
+      resource: {
+        raw,
+      },
+    },
+    (err) => {
+      if (err) return console.log(err);
+      return callback(file);
+    }
+  );
+}
+
+function uploadNotificationEmailBody(name, downloadLink) {
+  return `
+  <html style="font-family: &quot;Lato&quot;;">
+    <head>
+      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    </head>
+    <body style="padding: 20px 30px;">
+      <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
+      <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
+        ${name} heeft nieuwe bestanden geüpload op je website. Hieronder vindt je de
+        link om de zip folder met de bestanden te downloaden.
+        <br><span style="display: block; margin: 32px 0;"><strong style="text-decoration: underline;">Let op:</strong> de link
+          werkt alleen als je ingelogd bent in Google Drive of toegang hebt tot de
+          gedeelde map
+      </span></p>
+  
+      <table>
+        <tr>
+          <td><a class="btn" href=${downloadLink} style="font-size: 20px;color: #fff;line-height: 1em;margin: 1em 0;display: block;width: fit-content;padding: 0.75em 1em;cursor: pointer;outline: 0;border: 3px solid #007be0;border-radius: 32px;-webkit-border-radius: 32px;background-color: #007be0;text-decoration: none;text-transform: capitalize;box-shadow: 5px 5px 22px 0 rgba(0, 0, 0, 0.06);transition: background-color 0.25s ease-out, color 0.25s ease-out,
+            border-color 0.25s ease-out;">Download bestanden</a></td>
+          <td>
+            <a class="link" href="https://accounts.google.com/signin/v2/identifier?service=wise&passive=true&continue=http%3A%2F%2Fdrive.google.com%2F%3Futm_source%3Dnl&utm_medium=button&utm_campaign=web&utm_content=gotodrive&usp=gtd&ltmpl=drive&flowName=GlifWebSignIn&flowEntry=ServiceLogin" style="font-size: 20px;color: #001010;line-height: 1em;margin: 1em 0;text-decoration: none;margin-left: 24px;">Login Drive
+          </a></td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+}
+
+function formEntryEmailBody(data) {
+  return `
+  <html style="font-family: &quot;Lato&quot;;">
+  <head>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+  </head>
+  <body style="padding: 20px 30px;">
+    <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
+    <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
+      ${name} heeft nieuwe bestanden geüpload op je website. Hieronder vindt je de
+      link om de zip folder met de bestanden te downloaden.
+      <br><span style="display: block; margin: 32px 0;"><strong style="text-decoration: underline;">Let op:</strong> de link
+        werkt alleen als je ingelogd bent in Google Drive of toegang hebt tot de
+        gedeelde map
+    </span></p>
+
+    <table>
+      <tr>
+        <td><a class="btn" href=${downloadLink} style="font-size: 20px;color: #fff;line-height: 1em;margin: 1em 0;display: block;width: fit-content;padding: 0.75em 1em;cursor: pointer;outline: 0;border: 3px solid #007be0;border-radius: 32px;-webkit-border-radius: 32px;background-color: #007be0;text-decoration: none;text-transform: capitalize;box-shadow: 5px 5px 22px 0 rgba(0, 0, 0, 0.06);transition: background-color 0.25s ease-out, color 0.25s ease-out,
+          border-color 0.25s ease-out;">Download bestanden</a></td>
+        <td>
+          <a class="link" href="https://accounts.google.com/signin/v2/identifier?service=wise&passive=true&continue=http%3A%2F%2Fdrive.google.com%2F%3Futm_source%3Dnl&utm_medium=button&utm_campaign=web&utm_content=gotodrive&usp=gtd&ltmpl=drive&flowName=GlifWebSignIn&flowEntry=ServiceLogin" style="font-size: 20px;color: #001010;line-height: 1em;margin: 1em 0;text-decoration: none;margin-left: 24px;">Login Drive
+        </a></td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+module.exports = {
+  uploadFiles,
+  sendMessage,
+};
