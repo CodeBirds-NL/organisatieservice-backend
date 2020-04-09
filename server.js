@@ -5,7 +5,7 @@ const multer = require("multer");
 const cors = require("cors");
 const fs = require("fs");
 const archiver = require("archiver");
-const { uploadFiles, sendMessage } = require("./uploadFiles");
+const { uploadFiles, handleFormEntry } = require("./uploadFiles");
 
 /* INITIAL CONFIG */
 const app = express();
@@ -31,6 +31,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 /* ROUTES */
+
+// upload route
 app.post("/upload", upload.array("images"), (req, res) => {
   let name = req.body.name.toLowerCase().split(" ").join("");
   const uploadDir = `${__dirname}/uploads/`;
@@ -51,18 +53,18 @@ app.post("/upload", upload.array("images"), (req, res) => {
   output.on("finish", () => {
     // only zip with client_name with be left in uploads folder, ready to be shoot to google drive
     fs.rmdir(`uploads/${name}`, { recursive: true }, () => {
-      console.log(name + " dir successfully deleted");
+      console.log("local dir successfully deleted");
     });
 
     // send success response
     res.json("success");
 
     // upload zip to google drive, then delete zip file
-    uploadFiles(`${name}.zip`, req.body.name, (file) => {
+    uploadFiles(`${name}.zip`, req.body.name, () => {
       // this will delete the zip file
-      fs.unlink(uploadDir + file, (err) => {
+      fs.unlink(`${uploadDir + name}.zip`, (err) => {
         if (err) throw err;
-        return;
+        return console.log("zip file deleted");
       });
     });
   });
@@ -71,9 +73,12 @@ app.post("/upload", upload.array("images"), (req, res) => {
   archive.directory(`${uploadDir + name}`, false).finalize();
 });
 
+// form entry route
 app.post("/directactie", function (req, res) {
-  console.log(req.body);
-  res.json("success");
+  // 1. generate emailbody with fields from req.body
+  handleFormEntry(req.body, () => {
+    res.json("success");
+  });
 });
 
 app.listen(3001, () => {

@@ -12,12 +12,13 @@ const SCOPES = [
 // time.
 const TOKEN_PATH = "token.json";
 
-function uploadFiles(file, name, callback) {
+// store the authentication properties, used in all apis, here
+function authorizeApiRequest(callback) {
   // Load client secrets from a local file.
   fs.readFile("credentials.json", (err, content) => {
     if (err) return console.log("Error loading client secret file:", err);
     // Authorize a client with credentials, then call the Google Drive API.
-    authorize(JSON.parse(content), storeFiles);
+    authorize(JSON.parse(content));
   });
 
   /**
@@ -26,7 +27,7 @@ function uploadFiles(file, name, callback) {
    * @param {Object} credentials The authorization client credentials.
    * @param {function} callback The callback to call with the authorized client.
    */
-  function authorize(credentials, callback) {
+  function authorize(credentials) {
     const { client_secret, client_id, redirect_uris } = credentials.web;
     const oAuth2Client = new google.auth.OAuth2(
       client_id,
@@ -43,14 +44,13 @@ function uploadFiles(file, name, callback) {
         });
         console.log(tokens.refresh_token);
       }
-      // console.log(tokens.access_token);
     });
 
     // Check if we have previously stored a token.
     fs.readFile(TOKEN_PATH, (err, token) => {
       if (err) return getAccessToken(oAuth2Client, callback);
       oAuth2Client.setCredentials(JSON.parse(token));
-      callback(oAuth2Client);
+      callback(oAuth2Client); // continue with api request
     });
   }
 
@@ -60,7 +60,7 @@ function uploadFiles(file, name, callback) {
    * @param {google.auth.OAuth2} oAuth2Client The OAuth2 client to get token for.
    * @param {getEventsCallback} callback The callback for the authorized client.
    */
-  function getAccessToken(oAuth2Client, callback) {
+  function getAccessToken(oAuth2Client) {
     const authUrl = oAuth2Client.generateAuthUrl({
       access_type: "offline",
       scope: SCOPES,
@@ -80,14 +80,17 @@ function uploadFiles(file, name, callback) {
           if (err) return console.error(err);
           console.log("Token stored to", TOKEN_PATH);
         });
-        callback(oAuth2Client);
+        callback(oAuth2Client); // continue with api request
       });
     });
   }
+}
 
-  function storeFiles(auth) {
-    // console.log("auth", JSON.stringify(auth));
+function uploadFiles(file, name, callback) {
+  authorizeApiRequest((auth) => {
+    //after request is authorized configure drive api
     const drive = google.drive({ version: "v3", auth });
+
     var fileMetadata = {
       name: file,
     };
@@ -96,6 +99,8 @@ function uploadFiles(file, name, callback) {
       //PATH OF THE FILE FROM YOUR COMPUTER
       body: fs.createReadStream(`uploads/${file}`),
     };
+
+    // shoot that file to drive!
     drive.files.create(
       {
         resource: fileMetadata,
@@ -107,13 +112,18 @@ function uploadFiles(file, name, callback) {
           // Handle error
           console.error(err);
         } else {
-          // console.log("File Id: ", file.data.id);
-          // call here the callback which sends an email notification
-          sendMessage(auth, file.data.id, name, callback);
+          // send email notification after successful upload
+          sendMessage(auth, { fileId: file.data.id, name }, callback, "upload");
         }
       }
     );
-  }
+  });
+}
+
+function handleFormEntry(data, callback) {
+  authorizeApiRequest((auth) =>
+    sendMessage(auth, data, callback, "form-entry")
+  );
 }
 
 function makeBody(to, from, subject, message) {
@@ -148,17 +158,29 @@ function makeBody(to, from, subject, message) {
  * @param {name} name The name of the client who uploaded the files
  */
 
-function sendMessage(auth, fileId, name, callback) {
-  // Using the js-base64 library for encoding:
-  // https://www.npmjs.com/package/js-base64
-  const downloadLink = `https://drive.google.com/uc?export=download&id=${fileId}`;
+function sendMessage(auth, data, callback, src) {
   const gmail = google.gmail({ version: "v1", auth });
-  const raw = makeBody(
-    process.env.EMAIL_RECIPIENT,
-    process.env.EMAIL_SENDER,
-    `${name} heeft nieuwe bestanden geupload`,
-    uploadNotificationEmailBody(name, downloadLink)
-  );
+  let raw = {}; // contains email info like subject, body, sender, recipient
+
+  // configure the raw object
+  if (src === "upload") {
+    const downloadLink = `https://drive.google.com/uc?export=download&id=${data.fileId}`;
+    raw = makeBody(
+      process.env.EMAIL_RECIPIENT,
+      process.env.EMAIL_SENDER,
+      `${data.name} heeft nieuwe bestanden geupload`,
+      uploadNotificationEmailBody(data.name, downloadLink)
+    );
+  } else {
+    raw = makeBody(
+      process.env.EMAIL_RECIPIENT,
+      process.env.EMAIL_SENDER,
+      `Nieuwe aanvraag van ${data.name} via organisatieservice.nl`,
+      formEntryNotificationEmailBody(data)
+    );
+  }
+
+  // send out the message!
   gmail.users.messages.send(
     {
       userId: process.env.EMAIL_SENDER,
@@ -168,7 +190,7 @@ function sendMessage(auth, fileId, name, callback) {
     },
     (err) => {
       if (err) return console.log(err);
-      return callback(file);
+      return callback();
     }
   );
 }
@@ -182,28 +204,39 @@ function uploadNotificationEmailBody(name, downloadLink) {
     <body style="padding: 20px 30px;">
       <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
       <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
-        ${name} heeft nieuwe bestanden geüpload op je website. Hieronder vindt je de
-        link om de zip folder met de bestanden te downloaden.
-        <br><span style="display: block; margin: 32px 0;"><strong style="text-decoration: underline;">Let op:</strong> de link
+        ${name} heeft nieuwe bestanden geüpload op je website.<br>
+        Hieronder vindt je de link om de zip folder met de bestanden te downloaden.
+        <br><p style="margin: 32px 0; font-size:18px;"><strong style="text-decoration: underline;">Let op:</strong> de link
           werkt alleen als je ingelogd bent in Google Drive of toegang hebt tot de
-          gedeelde map
-      </span></p>
+          gedeelde map.
+      </p></p><br>
   
-      <table>
-        <tr>
-          <td><a class="btn" href=${downloadLink} style="font-size: 20px;color: #fff;line-height: 1em;margin: 1em 0;display: block;width: fit-content;padding: 0.75em 1em;cursor: pointer;outline: 0;border: 3px solid #007be0;border-radius: 32px;-webkit-border-radius: 32px;background-color: #007be0;text-decoration: none;text-transform: capitalize;box-shadow: 5px 5px 22px 0 rgba(0, 0, 0, 0.06);transition: background-color 0.25s ease-out, color 0.25s ease-out,
-            border-color 0.25s ease-out;">Download bestanden</a></td>
-          <td>
-            <a class="link" href="https://accounts.google.com/signin/v2/identifier?service=wise&passive=true&continue=http%3A%2F%2Fdrive.google.com%2F%3Futm_source%3Dnl&utm_medium=button&utm_campaign=web&utm_content=gotodrive&usp=gtd&ltmpl=drive&flowName=GlifWebSignIn&flowEntry=ServiceLogin" style="font-size: 20px;color: #001010;line-height: 1em;margin: 1em 0;text-decoration: none;margin-left: 24px;">Login Drive
-          </a></td>
-        </tr>
-      </table>
+      <a class="btn" href=${downloadLink} style="font-size: 20px;color: #fff;line-height: 1em;display: block;width: fit-content;padding: 0.75em 1em;cursor: pointer;outline: 0;border: 3px solid #007be0;border-radius: 32px;-webkit-border-radius: 32px;background-color: #007be0;text-decoration: none;text-transform: capitalize;box-shadow: 5px 5px 22px 0 rgba(0, 0, 0, 0.06);transition: background-color 0.25s ease-out, color 0.25s ease-out,
+            border-color 0.25s ease-out;">Download bestanden
+      </a><br><br>
+      <div style='font-size:20px;'>
+        <p>Prettige werkdag!</p>
+        <em style='font-size:18px; margin-top:5px;'>De websitebot</em>
+      </div>
     </body>
   </html>
   `;
 }
 
-function formEntryEmailBody(data) {
+function formEntryNotificationEmailBody(data) {
+  const fieldLabels = [
+    "Geslecteerde Dienst",
+    "Vraag",
+    "Toelichting vraag",
+    "Gewenste contactoptie",
+    "Naam",
+    "Bedrijfsnaam",
+    "Telefoonnummer",
+    "Email",
+    "Adres",
+  ];
+
+  // now create the email body!
   return `
   <html style="font-family: &quot;Lato&quot;;">
   <head>
@@ -212,27 +245,31 @@ function formEntryEmailBody(data) {
   <body style="padding: 20px 30px;">
     <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
     <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
-      ${name} heeft nieuwe bestanden geüpload op je website. Hieronder vindt je de
-      link om de zip folder met de bestanden te downloaden.
-      <br><span style="display: block; margin: 32px 0;"><strong style="text-decoration: underline;">Let op:</strong> de link
-        werkt alleen als je ingelogd bent in Google Drive of toegang hebt tot de
-        gedeelde map
-    </span></p>
+      ${
+        data.name
+      } heeft een nieuwe aanvraag gedaan op je website via het <strong>Direct Actie</strong> formulier.<br> 
+      Hieronder vindt je de gegevens:</p><br>
 
-    <table>
-      <tr>
-        <td><a class="btn" href=${downloadLink} style="font-size: 20px;color: #fff;line-height: 1em;margin: 1em 0;display: block;width: fit-content;padding: 0.75em 1em;cursor: pointer;outline: 0;border: 3px solid #007be0;border-radius: 32px;-webkit-border-radius: 32px;background-color: #007be0;text-decoration: none;text-transform: capitalize;box-shadow: 5px 5px 22px 0 rgba(0, 0, 0, 0.06);transition: background-color 0.25s ease-out, color 0.25s ease-out,
-          border-color 0.25s ease-out;">Download bestanden</a></td>
-        <td>
-          <a class="link" href="https://accounts.google.com/signin/v2/identifier?service=wise&passive=true&continue=http%3A%2F%2Fdrive.google.com%2F%3Futm_source%3Dnl&utm_medium=button&utm_campaign=web&utm_content=gotodrive&usp=gtd&ltmpl=drive&flowName=GlifWebSignIn&flowEntry=ServiceLogin" style="font-size: 20px;color: #001010;line-height: 1em;margin: 1em 0;text-decoration: none;margin-left: 24px;">Login Drive
-        </a></td>
-      </tr>
+    <table style='font-size:20px;'>
+    ${Object.values(data)
+      .map((entry, index) => {
+        return `<tr>
+          <th align='left'>${fieldLabels[index]}: </th>
+          <td style='margin-left:20px;'>${entry}</td>
+        </tr>`;
+      })
+      .join("")}
     </table>
+    <br><br>
+    <div style='font-size:20px;'>
+      <p>Prettige werkdag!</p>
+      <em style='font-size:18px; margin-top:5px;'>De websitebot</em>
+    </div>
   </body>
 </html>`;
 }
 
 module.exports = {
   uploadFiles,
-  sendMessage,
+  handleFormEntry,
 };
