@@ -81,6 +81,10 @@ app.post("/directactie", function (req, res) {
   });
 });
 
-app.listen(3001, () => {
-  console.log(`Running on port 3001`);
+app.get("/main", (req, res) => {
+  res.send("You hit the main route!");
+});
+
+app.listen(30100, () => {
+  console.log(`Running on port 30100`);
 });
