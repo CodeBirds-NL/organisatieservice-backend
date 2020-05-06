@@ -85,6 +85,7 @@ app.get("/main", (req, res) => {
   res.send("You hit the main route!");
 });
 
-app.listen(30100, () => {
-  console.log(`Running on port 30100`);
+const port = process.env.PORT;
+app.listen(port, () => {
+  console.log(`Running on port ${port}`);
 });
