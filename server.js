@@ -16,7 +16,7 @@ app.use(express.json()); // parse
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const name = req.body.name.toLowerCase().split(" ").join("");
-    const dirStr = `uploads/${name}`;
+    const dirStr = `tmp/${name}`;
     //create new directory in uploads with clients name as dirname
     fs.mkdir(dirStr, (err) => {
       if (err) return;
@@ -35,7 +35,7 @@ const upload = multer({ storage: storage });
 // upload route
 app.post("/upload", upload.array("images"), (req, res) => {
   let name = req.body.name.toLowerCase().split(" ").join("");
-  const uploadDir = `${__dirname}/uploads/`;
+  const uploadDir = `${__dirname}/tmp/`;
   // create zip file in uploads dir with clients name as filename
   const output = fs.createWriteStream(`${uploadDir + name}.zip`);
   const archive = archiver("zip", {
@@ -52,7 +52,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
   // we put this listener before the .finalize listener to prevent uncaught events
   output.on("finish", () => {
     // only zip with client_name with be left in uploads folder, ready to be shoot to google drive
-    fs.rmdir(`uploads/${name}`, { recursive: true }, () => {
+    fs.rmdir(`tmp/${name}`, { recursive: true }, () => {
       console.log("local dir successfully deleted");
     });
 
@@ -69,7 +69,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
     });
   });
 
-  // get all files in uploads/client_name and pipe them to uploads/client_name.zip
+  // get all files in uploads/client_name and pipe them to tmp/client_name.zip
   archive.directory(`${uploadDir + name}`, false).finalize();
 });
 

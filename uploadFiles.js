@@ -96,8 +96,8 @@ function uploadFiles(file, name, callback) {
     };
     var media = {
       mimeType: "application/zip",
-      //PATH OF THE FILE FROM YOUR COMPUTER
-      body: fs.createReadStream(`uploads/${file}`),
+      // get zip file contents from tmp folder
+      body: fs.createReadStream(`tmp/${file}`),
     };
 
     // shoot that file to drive!
