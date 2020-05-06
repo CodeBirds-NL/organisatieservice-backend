@@ -1,0 +1,6 @@
+file-upload-frontend/
+.env
+node_modules
+credentials.json
+token.json
+uploads
