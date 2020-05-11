@@ -239,8 +239,13 @@ function formEntryNotificationEmailBody(data) {
       Hieronder vindt je de gegevens:</p><br>
 
     <table style='font-size:20px;'>
+    <tr>
+          <th align='left'>Dienst: </th>
+          <td style='margin-left:20px;'>${data.dienst}</td>
+        </tr>
     ${Object.entries(data)
-      .map(([label, value]) => {
+      .map(([label, value], index) => {
+        if (index >= Object.entries(data).length - 1) return;
         return `<tr>
           <th align='left'>${
             label.charAt(0).toUpperCase() + label.slice(1)
