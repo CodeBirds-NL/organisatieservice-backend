@@ -224,18 +224,6 @@ function uploadNotificationEmailBody(name, downloadLink) {
 }
 
 function formEntryNotificationEmailBody(data) {
-  const fieldLabels = [
-    "Geslecteerde Dienst",
-    "Vraag",
-    "Toelichting vraag",
-    "Gewenste contactoptie",
-    "Naam",
-    "Bedrijfsnaam",
-    "Telefoonnummer",
-    "Email",
-    "Adres",
-  ];
-
   // now create the email body!
   return `
   <html style="font-family: &quot;Lato&quot;;">
@@ -246,16 +234,18 @@ function formEntryNotificationEmailBody(data) {
     <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
     <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
       ${
-        data.name
+        data["Naam"]
       } heeft een nieuwe aanvraag gedaan op je website via het <strong>Direct Actie</strong> formulier.<br> 
       Hieronder vindt je de gegevens:</p><br>
 
     <table style='font-size:20px;'>
-    ${Object.values(data)
-      .map((entry, index) => {
+    ${Object.entries(data)
+      .map(([label, value]) => {
         return `<tr>
-          <th align='left'>${fieldLabels[index]}: </th>
-          <td style='margin-left:20px;'>${entry}</td>
+          <th align='left'>${
+            label.charAt(0).toUpperCase() + label.slice(1)
+          }: </th>
+          <td style='margin-left:20px;'>${value}</td>
         </tr>`;
       })
       .join("")}
