@@ -234,7 +234,7 @@ function formEntryNotificationEmailBody(data) {
     <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
     <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
       ${
-        data["Naam"]
+        data.name
       } heeft een nieuwe aanvraag gedaan op je website via het <strong>Direct Actie</strong> formulier.<br> 
       Hieronder vindt je de gegevens:</p><br>
 
