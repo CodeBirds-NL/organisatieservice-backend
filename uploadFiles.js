@@ -93,6 +93,7 @@ function uploadFiles(file, name, callback) {
 
     var fileMetadata = {
       name: file,
+      parents: ["1f5MjO2UO1us0jLOY8K9mf08Yo_95rvr8"],
     };
     var media = {
       mimeType: "application/zip",
