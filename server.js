@@ -12,13 +12,19 @@ const app = express();
 app.use(cors());
 app.use(express.json()); // parse
 
+/* Set up tmp folder */
+const dir = "./tmp";
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir);
+}
+
 /* MULTER STORAGE CONFIG */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const name = req.body.name.toLowerCase().split(" ").join("");
-    const dirStr = `tmp/${name}`;
-    //create new directory in uploads with clients name as dirname
-    fs.mkdir(dirStr, (err) => {
+
+    //create new directory in tmp with clients name as dirname
+    fs.mkdir(`tmp/${name}`, (err) => {
       if (err) return;
     });
     // then do callback which sets destination to made up string

@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "commit": "git add . && git commit -m",
+    "deploy": "git push -q && ssh pieter@codebirds-apiserver.nl '(cd apps/organisatieservice.codebirds-apiserver.nl; git pull; pm2 restart server; exit)'"
   },
   "author": "",
   "license": "ISC",
