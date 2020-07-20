@@ -28,7 +28,7 @@ const storage = multer.diskStorage({
       if (err) return;
     });
     // then do callback which sets destination to made up string
-    cb(null, dirStr);
+    cb(null, `tmp/${name}`);
   },
   filename: function (req, file, cb) {
     cb(null, file.originalname);
