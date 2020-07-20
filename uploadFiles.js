@@ -86,13 +86,13 @@ function authorizeApiRequest(callback) {
   }
 }
 
-function uploadFiles(file, name, callback) {
+function uploadFiles(file, project, name, callback) {
   authorizeApiRequest((auth) => {
     //after request is authorized configure drive api
     const drive = google.drive({ version: "v3", auth });
 
     var fileMetadata = {
-      name: file,
+      name: `${file}_${project}`,
       parents: ["1f5MjO2UO1us0jLOY8K9mf08Yo_95rvr8"],
     };
     var media = {

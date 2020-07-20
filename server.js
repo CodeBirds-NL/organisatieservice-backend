@@ -41,6 +41,7 @@ const upload = multer({ storage: storage });
 // upload route
 app.post("/upload", upload.array("images"), (req, res) => {
   let name = req.body.name.toLowerCase().split(" ").join("");
+  let project = req.body.project.toLowerCase().split(" ").join("");
   const uploadDir = `${__dirname}/tmp/`;
   // create zip file in uploads dir with clients name as filename
   const output = fs.createWriteStream(`${uploadDir + name}.zip`);
@@ -66,7 +67,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
     res.json("success");
 
     // upload zip to google drive, then delete zip file
-    uploadFiles(`${name}.zip`, req.body.name, () => {
+    uploadFiles(`${name}.zip`, project, req.body.name, () => {
       // this will delete the zip file
       fs.unlink(`${uploadDir + name}.zip`, (err) => {
         if (err) throw err;
