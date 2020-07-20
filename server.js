@@ -67,7 +67,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
     res.json("success");
 
     // upload zip to google drive, then delete zip file
-    uploadFiles(`${name}.zip`, project, req.body.name, () => {
+    uploadFiles(name, project, req.body.name, () => {
       // this will delete the zip file
       fs.unlink(`${uploadDir + name}.zip`, (err) => {
         if (err) throw err;

@@ -92,13 +92,13 @@ function uploadFiles(file, project, name, callback) {
     const drive = google.drive({ version: "v3", auth });
 
     var fileMetadata = {
-      name: `${file}_${project}`,
+      name: `${file}_${project}.zip`,
       parents: ["1f5MjO2UO1us0jLOY8K9mf08Yo_95rvr8"],
     };
     var media = {
       mimeType: "application/zip",
       // get zip file contents from tmp folder
-      body: fs.createReadStream(`tmp/${file}`),
+      body: fs.createReadStream(`tmp/${file}.zip`),
     };
 
     // shoot that file to drive!
