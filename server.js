@@ -90,7 +90,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
   // we put this listener before the .finalize listener to prevent uncaught events
   output.on("finish", () => {
     // only zip with client_name with be left in uploads folder, ready to be shoot to google drive
-    if (!err) {
+    if (!error) {
       fs.rmdir(`tmp/${name}`, { recursive: true }, () => {
         console.log("local dir successfully deleted");
       });
