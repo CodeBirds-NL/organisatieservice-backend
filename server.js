@@ -54,7 +54,7 @@ app.post("/upload", upload.array("images"), (req, res) => {
     zlib: { level: 9 },
   });
 
-  archive.on("error", (err) => {
+  const handleErrorNotification = () => {
     let data = {
       name,
       project,
@@ -64,8 +64,24 @@ app.post("/upload", upload.array("images"), (req, res) => {
       }),
     };
     sendErrorNotification(data);
+  };
 
+  archive.on("warning", function (err) {
     error = true;
+    handleErrorNotification();
+
+    if (err.code === "ENOENT") {
+      // log warning
+      console.log(err);
+    } else {
+      // throw error
+      throw err;
+    }
+  });
+
+  archive.on("error", (err) => {
+    error = true;
+    return handleErrorNotification();
   });
 
   archive.pipe(output);
