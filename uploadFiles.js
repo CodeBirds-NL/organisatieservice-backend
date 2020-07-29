@@ -127,6 +127,10 @@ function handleFormEntry(data, callback) {
   );
 }
 
+function sendErrorNotification(data) {
+  authorizeApiRequest((auth) => sendMessage(auth, data, "error-notification"));
+}
+
 function makeBody(to, from, subject, message) {
   const str = [
     'Content-Type: text/html; charset="UTF-8"\n',
@@ -171,6 +175,13 @@ function sendMessage(auth, data, callback, src) {
       process.env.EMAIL_SENDER,
       `${data.name} heeft nieuwe bestanden geupload`,
       uploadNotificationEmailBody(data.name, downloadLink)
+    );
+  } else if (src === "error-notification") {
+    raw = makeBody(
+      process.env.EMAIL_RECIPIENT,
+      process.env.EMAIL_SENDER,
+      `Upload van ${data.name} op ${data.date} is mislukt.`,
+      errorNotificationBody(data)
     );
   } else {
     raw = makeBody(
@@ -265,7 +276,42 @@ function formEntryNotificationEmailBody(data) {
 </html>`;
 }
 
+function errorNotificationBody(data) {
+  return `
+  <html style="font-family: &quot;Lato&quot;;">
+    <head>
+      <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    </head>
+    <body style="padding: 20px 30px;">
+      <p style="font-size: 24px;font-weight: 700;color: #001010;line-height: 1.5em;margin: 1em 0;">Hallo Mathijs,</p>
+      <p style="width: 500px;font-size: 20px;color: #001010;line-height: 1.5em;margin: 1em 0;">
+        ${
+          data.name
+        } heeft geprobeerd een aantal bestanden te uploaden. Het betreft project ${
+    data.project ? `Het betreft project ${data.project}` : ""
+  }.
+      <br><br>
+        Hieronder vindt een lijst met de bestanden.
+      </p><br>
+      <div style='font-size:20px;'>
+      <ul>
+      ${data.files.map((f) => {
+        return `<li>${f.name}</li>`;
+      })}
+      </ul>
+      </div>
+      <br>
+      <div style='font-size:20px;'>
+        <p>Prettige werkdag!</p>
+        <em style='font-size:18px; margin-top:5px;'>De websitebot</em>
+      </div>
+    </body>
+  </html>
+  `;
+}
+
 module.exports = {
   uploadFiles,
   handleFormEntry,
+  sendErrorNotification,
 };

@@ -5,7 +5,11 @@ const multer = require("multer");
 const cors = require("cors");
 const fs = require("fs");
 const archiver = require("archiver");
-const { uploadFiles, handleFormEntry } = require("./uploadFiles");
+const {
+  uploadFiles,
+  handleFormEntry,
+  sendErrorNotification,
+} = require("./uploadFiles");
 
 /* INITIAL CONFIG */
 const app = express();
@@ -21,7 +25,7 @@ if (!fs.existsSync(dir)) {
 /* MULTER STORAGE CONFIG */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const name = req.body.name.toLowerCase().split(" ").join("");
+    const name = req.body.name.toLowerCase();
 
     //create new directory in tmp with clients name as dirname
     fs.mkdir(`tmp/${name}`, (err) => {
@@ -40,8 +44,9 @@ const upload = multer({ storage: storage });
 
 // upload route
 app.post("/upload", upload.array("images"), (req, res) => {
-  let name = req.body.name.toLowerCase().split(" ").join("");
-  let project = req.body.project.toLowerCase().split(" ").join("");
+  let error = false;
+  let name = req.body.name.toLowerCase();
+  let project = req.body.project.toLowerCase();
   const uploadDir = `${__dirname}/tmp/`;
   // create zip file in uploads dir with clients name as filename
   const output = fs.createWriteStream(`${uploadDir + name}.zip`);
@@ -50,7 +55,17 @@ app.post("/upload", upload.array("images"), (req, res) => {
   });
 
   archive.on("error", (err) => {
-    throw err;
+    let data = {
+      name,
+      project,
+      files: req.images,
+      date: new Date().toLocaleString("nl-NL", {
+        timeZone: "Europe/Amsterdam",
+      }),
+    };
+    sendErrorNotification(data);
+
+    error = true;
   });
 
   archive.pipe(output);
@@ -59,20 +74,21 @@ app.post("/upload", upload.array("images"), (req, res) => {
   // we put this listener before the .finalize listener to prevent uncaught events
   output.on("finish", () => {
     // only zip with client_name with be left in uploads folder, ready to be shoot to google drive
-    fs.rmdir(`tmp/${name}`, { recursive: true }, () => {
-      console.log("local dir successfully deleted");
-    });
-
-    // send success response
-    res.json("success");
+    if (!err) {
+      fs.rmdir(`tmp/${name}`, { recursive: true }, () => {
+        console.log("local dir successfully deleted");
+      });
+    } else return;
 
     // upload zip to google drive, then delete zip file
     uploadFiles(name, project, req.body.name, () => {
       // this will delete the zip file
       fs.unlink(`${uploadDir + name}.zip`, (err) => {
         if (err) throw err;
-        return console.log("zip file deleted");
+        console.log("zip file deleted, Google Drive upload successfull.");
+        // send success response
       });
+      res.json("success");
     });
   });
 
@@ -86,10 +102,6 @@ app.post("/directactie", function (req, res) {
   handleFormEntry(req.body, () => {
     res.json("success");
   });
-});
-
-app.get("/main", (req, res) => {
-  res.send("You hit the main route!");
 });
 
 const port = process.env.PORT;
